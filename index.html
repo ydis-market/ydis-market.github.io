@@ -2092,7 +2092,7 @@ let _groqKey = null;
 async function getGroqKey() {
   if (_groqKey) return _groqKey;
   try {
-    const snap = await window.FB_getDoc(window.FB_doc(window.FB_DB, 'config', 'dixie'));
+    const snap = await window.FB_getDoc(window.FB_doc(window.FB_DB, 'customization', 'dixie'));
     if (snap.exists() && snap.data().groqKey) {
       _groqKey = snap.data().groqKey;
       return _groqKey;
@@ -2587,7 +2587,7 @@ async function saveGroqKey() {
   const key = document.getElementById('cust-groq-key').value.trim();
   if (!key || !key.startsWith('gsk_')) { showToast('&#9888;&#65039; La clave debe empezar con gsk_'); return; }
   try {
-    await window.FB_setDoc(window.FB_doc(window.FB_DB, 'config', 'dixie'), { groqKey: key }, { merge: true });
+    await window.FB_setDoc(window.FB_doc(window.FB_DB, 'customization', 'dixie'), { groqKey: key }, { merge: true });
     _groqKey = key;
     document.getElementById('cust-groq-key').value = '';
     showToast('&#9989; Clave de Dixie guardada correctamente');
