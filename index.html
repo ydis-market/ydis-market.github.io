@@ -1169,6 +1169,12 @@ footer .f-logo { font-family:'Bebas Neue',sans-serif; font-size:2rem; color:var(
       <div class="fg"><label>Nombre de la tienda</label><input type="text" id="cust-name" placeholder="YDis Market"></div>
       <div class="fg"><label>Slogan</label><input type="text" id="cust-slogan" placeholder="Tu tienda de confianza"></div>
       <div class="fg"><label>Titulo del hero</label><input type="text" id="cust-hero" placeholder="&#9889; YDis Market"></div>
+        <div class="fg" style="margin-top:18px;border-top:1px solid var(--glass-border);padding-top:18px;">
+          <label style="color:var(--accent)">&#129302; Clave API de Dixie (Groq)</label>
+          <input type="password" id="cust-groq-key" placeholder="gsk_...">
+          <p style="font-size:.72rem;color:var(--text-muted);margin-top:5px">&#128274; Se guarda segura en tu base de datos. Nunca aparece en el codigo.</p>
+          <button class="btn btn-gold btn-sm" style="margin-top:8px" onclick="saveGroqKey()">&#128274; Guardar Clave</button>
+        </div>
       <div class="fg"><label>Color de acento</label>
         <input type="color" id="cust-accent" value="#FFB800" style="width:60px;height:38px;padding:2px;border-radius:8px;border:1px solid var(--glass-border);background:transparent;cursor:pointer;">
         <div class="color-swatches" style="margin-top:8px">
@@ -2080,7 +2086,20 @@ TU FUNCION PRINCIPAL es buscar productos. Cuando el cliente mencione un producto
 IMPORTANTE: cuando encuentres un producto, escribe exactamente [PRODUCTO: nombre] para que el sistema lo muestre con foto.
 Responde SIEMPRE en español. Se breve y amigable. Usa pocos emojis.`;
 
-const GROQ_API_KEY = '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';
+// Groq key se carga desde Firestore (guardada de forma segura por el admin)
+let _groqKey = null;
+
+async function getGroqKey() {
+  if (_groqKey) return _groqKey;
+  try {
+    const snap = await window.FB_getDoc(window.FB_doc(window.FB_DB, 'config', 'dixie'));
+    if (snap.exists() && snap.data().groqKey) {
+      _groqKey = snap.data().groqKey;
+      return _groqKey;
+    }
+  } catch(e) {}
+  return null;
+}
 
 async function sendDixie() {
   const input = document.getElementById('dixie-input');
@@ -2095,11 +2114,18 @@ async function sendDixie() {
     ? `Productos en YDis Market:\n${products.map(p => `- ${p.name}: $${p.price} (${p.cat})`).join('\n')}`
     : 'Aun no hay productos cargados.';
 
+  const groqKey = await getGroqKey();
+  if (!groqKey) {
+    document.getElementById('typing-ind').style.display = 'none';
+    addDixieMsg('Dixie no esta configurada aun. Contacta al administrador.', false);
+    return;
+  }
+
   try {
     const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${GROQ_API_KEY}`,
+        'Authorization': `Bearer ${groqKey}`,
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
@@ -2123,7 +2149,7 @@ async function sendDixie() {
   } catch(e) {
     console.error('Groq error:', e);
     document.getElementById('typing-ind').style.display = 'none';
-    addDixieMsg('Lo siento, hubo un error. Intenta de nuevo o escríbenos al WhatsApp: 5562-1884.', false);
+    addDixieMsg('Lo siento, hubo un error. Intenta de nuevo o escribenos al WhatsApp: 5562-1884.', false);
   }
 }
 
@@ -2554,6 +2580,18 @@ async function saveCustomization() {
     applyCustomization(data);
     showToast('&#9989; Personalizacion guardada');
   } catch(e) { showToast('&#10060; Error guardando'); }
+}
+
+async function saveGroqKey() {
+  if (!isAdmin) return;
+  const key = document.getElementById('cust-groq-key').value.trim();
+  if (!key || !key.startsWith('gsk_')) { showToast('&#9888;&#65039; La clave debe empezar con gsk_'); return; }
+  try {
+    await window.FB_setDoc(window.FB_doc(window.FB_DB, 'config', 'dixie'), { groqKey: key }, { merge: true });
+    _groqKey = key;
+    document.getElementById('cust-groq-key').value = '';
+    showToast('&#9989; Clave de Dixie guardada correctamente');
+  } catch(e) { showToast('&#10060; Error guardando la clave'); }
 }
 
 function applyAccent(color) {
